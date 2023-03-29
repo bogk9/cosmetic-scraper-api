@@ -1,7 +1,3 @@
-const delayMap = require("../utils/delayMap");
-const delay = require('../utils/delay')
-const fs = require('fs')
-
 
 module.exports = class Ingredients {
     /**
@@ -10,6 +6,8 @@ module.exports = class Ingredients {
     constructor(browser, page, url, ingredientXpath, attributesXpaths){
         this.browser = browser;
         this.page = page;
+        this.ingredientXpath = ingredientXpath;
+        this.attributesXpaths = attributesXpaths;
         this.ingredients = [];
         this.url = url;
     }
@@ -17,7 +15,7 @@ module.exports = class Ingredients {
     async #evaluateIngredientList(){
         return await this.page.evaluate(() => {
             const ingredientLinks = Array.from(
-              document.querySelectorAll('li.c-ingredients-pos__link-itm a')
+              document.querySelectorAll(ingredientXpath)
             );
           
             return ingredientLinks.map((link) => ({
@@ -27,15 +25,20 @@ module.exports = class Ingredients {
         });
     }
 
-    async #getIngredientDetails(ingredientURL){
-        await this.page.goto(ingredientURL, {waitUntil: "domcontentloaded"})
-        return this.page.evaluate(() => {
-            return {
-                score: document.querySelector('div.c-quality-ico__icon')?.innerText,
-                categories: Array.from(document.querySelectorAll('a.c-category-btn')).map(cat => cat?.innerText), 
-                desc: document.querySelector("#__layout > div > div > div > div:nth-child(2) > div > div:nth-child(5) > div > div > p")?.innerText,
-            }
-        });
+    async #getIngredientDetails(ingredientURL) {
+        try {
+            await this.page.goto(ingredientURL, {waitUntil: "domcontentloaded"})
+            return this.page.evaluate(() => {
+                return {
+                    score: document.querySelector(this.attributesXpaths.score)?.innerText,
+                    categories: Array.from(document.querySelectorAll(this.attributesXpaths.categories)).map(cat => cat?.innerText), 
+                    desc: document.querySelector(this.attributesXpaths.desc)?.innerText,
+                }
+            });
+        } catch (error) {
+            console.error(`Failed to retrieve ingredient details for ${ingredientURL}: ${error}`);
+            return null;
+        }
     }
 
     async #evaluateIngredientDetails(){
